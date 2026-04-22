@@ -53,3 +53,32 @@ jobs:
             # Step 8 : Notify on Completion
             - name: Notify on Completion
               run: echo "ML Pipeline execution completed successfully."
+
+    deploy:
+        needs: ml-pipelines
+        runs-on: ubuntu-latest
+        
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Download trained model artifact
+              uses: actions/download-artifact@v4
+              with:
+                name: trained-model
+                path: models/
+
+            - name: Create deployment package
+              run: |
+                zip -r deployment.zip application.py app.py requirements.txt src/ data/ models/ templates/ static/
+
+            - name: Deploy to Elastic Beanstalk
+              uses: einaregilsson/beanstalk-deploy@v22
+              with:
+                aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                application_name: house-price-predictor
+                environment_name: HousePricePredictor-env
+                version_label: "v${{ github.run_number }}"
+                region: ${{ secrets.AWS_REGION }}
+                deployment_package: deployment.zip
